@@ -1,4 +1,5 @@
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MBconst ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
 const MAX_HISTORY_ITEMS = 5;
 
 const dropZone = document.getElementById('dropZone');
@@ -36,6 +37,12 @@ let currentRotation = 0;
 let currentImageData = null;
 let currentBrightness = 100;
 let currentContrast = 100;
+
+// Multiple file upload handling
+const multipleDropZone = document.getElementById('multipleDropZone');
+const multipleFileInput = document.getElementById('multipleFileInput');
+const multiplePreviewGrid = document.getElementById('multiplePreviewGrid');
+let uploadQueue = [];
 
 // Theme Management
 function initTheme() {
@@ -211,7 +218,7 @@ function preventDefaults(e) {
 });
 
 ['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, unhighlight, false);
+    dropZone.addEventListener('dragleave', unhighlight, false);
 });
 
 function highlight() {
@@ -683,4 +690,138 @@ extractButton.addEventListener('click', async () => {
         progressBar.style.width = '0%';
         statusText.textContent = 'Ready';
     }
+});
+
+// Create batch process button
+const batchProcessButton = document.createElement('button');
+batchProcessButton.className = 'batch-process-btn';
+batchProcessButton.textContent = 'Process All Images';
+batchProcessButton.style.display = 'none';
+multiplePreviewGrid.after(batchProcessButton);
+
+async function processBatchImages() {
+    if (uploadQueue.length === 0) {
+        showNotification('No images to process', 'error');
+        return;
+    }
+
+    batchProcessButton.disabled = true;
+    let results = [];
+
+    for (let i = 0; i < uploadQueue.length; i++) {
+        const item = uploadQueue[i];
+        const statusElement = item.element.querySelector('.status');
+        statusElement.textContent = 'Processing...';
+
+        try {
+            const worker = await Tesseract.createWorker();
+            await worker.loadLanguage('eng');
+            await worker.initialize('eng');
+            
+            const result = await worker.recognize(item.file);
+            await worker.terminate();
+
+            results.push({
+                filename: item.file.name,
+                text: result.data.text.trim()
+            });
+            
+            statusElement.textContent = 'Completed';
+            item.element.style.borderColor = 'var(--success-color)';
+        } catch (error) {
+            statusElement.textContent = 'Failed';
+            item.element.style.borderColor = 'var(--error-color)';
+            console.error(`Error processing ${item.file.name}:`, error);
+        }
+    }
+
+    if (results.length > 0) {
+        // Combine all results
+        const combinedText = results.map(r => 
+            `=== ${r.filename} ===\n${r.text}\n\n`
+        ).join('');
+        
+        resultText.value = combinedText;
+        showNotification(`Successfully processed ${results.length} images`, 'success');
+    }
+
+    batchProcessButton.disabled = false;
+}
+
+function updateBatchProcessButton() {
+    batchProcessButton.style.display = uploadQueue.length > 0 ? 'block' : 'none';
+}
+
+function handleMultipleFiles(files) {
+    Array.from(files).forEach(file => {
+        if (!ALLOWED_TYPES.includes(file.type)) {
+            showNotification(`Invalid file type: ${file.name}`, 'error');
+            return;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+            showNotification(`File too large: ${file.name}`, 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        const previewItem = createPreviewItem(file);
+        multiplePreviewGrid.appendChild(previewItem);
+        
+        reader.onload = (e) => {
+            const img = previewItem.querySelector('img');
+            img.src = e.target.result;
+            uploadQueue.push({
+                file,
+                element: previewItem
+            });
+            updateBatchProcessButton();
+        };
+        
+        reader.readAsDataURL(file);
+    });
+}
+
+function createPreviewItem(file) {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.innerHTML = `
+        <img src="#" alt="${file.name}">
+        <button class="remove-btn" aria-label="Remove image">×</button>
+        <div class="filename">${file.name}</div>
+        <div class="status">Ready to process</div>
+    `;
+    
+    div.querySelector('.remove-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        div.remove();
+        uploadQueue = uploadQueue.filter(item => item.element !== div);
+        updateBatchProcessButton();
+    });
+    
+    return div;
+}
+
+batchProcessButton.addEventListener('click', processBatchImages);
+
+multipleFileInput.addEventListener('change', (e) => {
+    handleMultipleFiles(e.target.files);
+});
+
+multipleDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    multipleDropZone.classList.add('dragover');
+});
+
+multipleDropZone.addEventListener('dragleave', () => {
+    multipleDropZone.classList.remove('dragover');
+});
+
+multipleDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    multipleDropZone.classList.remove('dragover');
+    handleMultipleFiles(e.dataTransfer.files);
+});
+
+multipleDropZone.addEventListener('click', () => {
+    multipleFileInput.click();
 }); 
