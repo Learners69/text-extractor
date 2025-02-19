@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Text Extractor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js'></script>
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="themeToggle" aria-label="Toggle dark mode">
+            <svg class="sun-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="moon-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Image Text Extractor</h1>
+            <p>Extract text from images easily using OCR technology</p>
+        </header>
+
+        <section class="history-section" aria-label="Recent images">
+            <h2>Recent Images</h2>
+            <div class="history-container" id="historyContainer">
+                <p class="empty-history">No recent images</p>
+            </div>
+            <button class="clear-history-btn" id="clearHistoryButton" aria-label="Clear history">
+                Clear History
+            </button>
+        </section>
+
+        <section class="upload-section">
+            <h2>Upload Image</h2>
+            <div class="upload-tabs">
+                <button class="upload-tab active" data-tab="upload">Upload File</button>
+                <button class="upload-tab" data-tab="paste">Paste Image</button>
+            </div>
+            
+            <div class="upload-content active" data-content="upload">
+                <div class="upload-area" id="dropZone" tabindex="0" role="button" aria-label="Upload image area. Click or drag and drop an image here">
+                    <input type="file" id="fileInput" accept="image/*" hidden aria-hidden="true">
+                    <div class="upload-icon">
+                        <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                    </div>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                    <p class="upload-text">or drag and drop your image here</p>
+                    <p class="upload-info">Supported formats: JPG, PNG, GIF (max 5MB)</p>
+                    <div class="error-message" role="alert" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div class="upload-content" data-content="paste">
+                <div class="paste-area" id="pasteZone" tabindex="0" role="button" aria-label="Paste image area. Click to focus and paste an image">
+                    <div class="paste-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </div>
+                    <p class="paste-text">Click here and paste your image</p>
+                    <div class="paste-shortcut">
+                        Press <span class="key">Ctrl</span> + <span class="key">V</span> to paste
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="preview-section">
+            <h2>Image Preview</h2>
+            <div class="preview-area">
+                <div class="preview-placeholder">
+                    <p>No image selected</p>
+                </div>
+                <img id="imagePreview" alt="Preview" style="display: none;">
+                <div class="loading-indicator" style="display: none;">
+                    <div class="spinner" role="progressbar" aria-label="Loading preview"></div>
+                    <p>Loading preview...</p>
+                </div>
+            </div>
+            
+            <div class="image-controls" style="display: none;">
+                <div class="control-group">
+                    <button class="control-btn rotate-left" aria-label="Rotate left">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M2 12c0 5.52 4.48 10 10 10s10-4.48 10-10S17.52 2 12 2"></path>
+                            <path d="M2 12h10"></path>
+                            <path d="M2 12L6 8"></path>
+                            <path d="M2 12l4 4"></path>
+                        </svg>
+                    </button>
+                    <button class="control-btn rotate-right" aria-label="Rotate right">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M22 12c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2"></path>
+                            <path d="M22 12H12"></path>
+                            <path d="M22 12l-4-4"></path>
+                            <path d="M22 12l-4 4"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="slider-group">
+                    <label class="slider-label">
+                        Brightness
+                        <input type="range" min="0" max="200" value="100" class="slider" id="brightnessSlider" aria-label="Adjust brightness">
+                    </label>
+                    <label class="slider-label">
+                        Contrast
+                        <input type="range" min="0" max="200" value="100" class="slider" id="contrastSlider" aria-label="Adjust contrast">
+                    </label>
+                </div>
+                
+                <button class="reset-btn" id="resetImageButton" aria-label="Reset image adjustments">
+                    Reset
+                </button>
+            </div>
+        </section>
+
+        <div class="extract-btn-container">
+            <button class="extract-btn" id="extractButton" disabled>
+                Extract Text
+            </button>
+        </div>
+
+        <section class="processing-section" style="display: none;">
+            <div class="processing-container">
+                <div class="status-text">Initializing...</div>
+                <div class="progress-bar">
+                    <div class="progress" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="result-section">
+            <h2>Extracted Text</h2>
+            <div class="result-area">
+                <label for="resultText" class="sr-only">Extracted Text Result</label>
+                <textarea id="resultText" readonly placeholder="Extracted text will appear here"></textarea>
+                <div class="result-actions">
+                    <button class="action-btn copy-btn" id="copyButton" title="Copy to clipboard" aria-label="Copy text">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                    </button>
+                    <button class="action-btn download-btn" id="downloadButton" title="Download as TXT" aria-label="Download text">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download
+                    </button>
+                    <button class="action-btn clear-btn" id="clearButton" title="Clear results" aria-label="Clear text">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="notifications" id="notifications" aria-live="polite"></div>
+    <script src="script.js"></script>
+</body>
+</html> 
